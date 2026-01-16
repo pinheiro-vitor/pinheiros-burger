@@ -1,10 +1,12 @@
 export interface MenuItem {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
-  image?: string;
-  category: string;
+  image_url: string | null;
+  category_id: string | null;
+  active?: boolean;
+  display_order?: number;
 }
 
 export interface CartItem extends MenuItem {
@@ -15,5 +17,7 @@ export interface CartItem extends MenuItem {
 export interface Category {
   id: string;
   name: string;
-  icon: string;
+  icon: string | null;
+  display_order?: number;
+  active?: boolean;
 }

@@ -1,12 +1,14 @@
 import { motion } from "framer-motion";
-import { categories } from "@/data/menu";
+import { Category } from "@/types/menu";
 
 interface CategoryNavProps {
+  categories: Category[];
   activeCategory: string;
   onCategoryChange: (categoryId: string) => void;
 }
 
 export function CategoryNav({
+  categories,
   activeCategory,
   onCategoryChange,
 }: CategoryNavProps) {

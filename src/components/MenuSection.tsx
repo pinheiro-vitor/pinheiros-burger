@@ -1,19 +1,18 @@
-import { MenuItem } from "@/types/menu";
+import { MenuItem, Category } from "@/types/menu";
 import { MenuCard } from "./MenuCard";
-import { categories } from "@/data/menu";
+
 
 interface MenuSectionProps {
-  categoryId: string;
+  category: Category;
   items: MenuItem[];
 }
 
-export function MenuSection({ categoryId, items }: MenuSectionProps) {
-  const category = categories.find((c) => c.id === categoryId);
-  
-  if (!category || items.length === 0) return null;
+export function MenuSection({ category, items }: MenuSectionProps) {
+
+  if (items.length === 0) return null;
 
   return (
-    <section id={categoryId} className="scroll-mt-20">
+    <section id={category.id} className="scroll-mt-20">
       <div className="mb-4 flex items-center gap-2">
         <span className="text-2xl">{category.icon}</span>
         <h2 className="font-display text-3xl tracking-wider text-foreground">
