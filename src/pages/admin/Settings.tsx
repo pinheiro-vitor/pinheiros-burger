@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { DeliveryZonesManager } from "@/components/admin/DeliveryZonesManager";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface StoreSettings {
   id: string;
@@ -45,6 +46,7 @@ const dayLabels: Record<string, string> = {
 
 export default function AdminSettings() {
   const queryClient = useQueryClient();
+  const [deliveryMode, setDeliveryMode] = useState<"fixed" | "distance">("distance");
   const [formData, setFormData] = useState({
     store_name: "",
     whatsapp_number: "",
@@ -79,6 +81,12 @@ export default function AdminSettings() {
         opening_hours: settings.opening_hours || defaultHours,
         store_address: settings.store_address || "",
       });
+
+      if (settings.delivery_fee !== null) {
+        setDeliveryMode("fixed");
+      } else {
+        setDeliveryMode("distance");
+      }
     }
   }, [settings]);
 
@@ -89,7 +97,8 @@ export default function AdminSettings() {
         whatsapp_number: data.whatsapp_number,
         is_open: data.is_open,
         min_order_value: data.min_order_value ? parseFloat(data.min_order_value) : null,
-        delivery_fee: data.delivery_fee ? parseFloat(data.delivery_fee) : null,
+        // If mode is distance, force delivery_fee to null
+        delivery_fee: deliveryMode === "fixed" && data.delivery_fee ? parseFloat(data.delivery_fee) : null,
         opening_hours: data.opening_hours,
         store_address: data.store_address || null,
       };
@@ -142,7 +151,7 @@ export default function AdminSettings() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6 max-w-4xl">
         <h1 className="font-display text-3xl">Configurações</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -153,67 +162,120 @@ export default function AdminSettings() {
               <CardDescription>Dados gerais do estabelecimento</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="store_name">Nome da Loja</Label>
-                <Input
-                  id="store_name"
-                  value={formData.store_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, store_name: e.target.value })
-                  }
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="store_name">Nome da Loja</Label>
+                  <Input
+                    id="store_name"
+                    value={formData.store_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, store_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <Input
+                    id="whatsapp"
+                    value={formData.whatsapp_number}
+                    onChange={(e) =>
+                      setFormData({ ...formData, whatsapp_number: e.target.value })
+                    }
+                    placeholder="5511999999999"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="whatsapp">WhatsApp</Label>
-                <Input
-                  id="whatsapp"
-                  value={formData.whatsapp_number}
-                  onChange={(e) =>
-                    setFormData({ ...formData, whatsapp_number: e.target.value })
-                  }
-                  placeholder="5511999999999"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="store_address">Endereço da Loja</Label>
-                <Input
-                  id="store_address"
-                  value={formData.store_address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, store_address: e.target.value })
-                  }
-                  placeholder="Rua, Número - Bairro, Cidade - UF"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Endereço usado como base para cálculo de frete por distância
-                </p>
-              </div>
-              <div className="flex items-center justify-between">
+
+              <div className="flex items-center justify-between border p-3 rounded-lg bg-muted/20">
                 <div>
-                  <Label>Loja Aberta</Label>
+                  <Label className="text-base">Status da Loja</Label>
                   <p className="text-sm text-muted-foreground">
-                    Clientes podem fazer pedidos
+                    Define se a loja está aceitando pedidos agora
                   </p>
                 </div>
-                <Switch
-                  checked={formData.is_open}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, is_open: checked })
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-medium ${formData.is_open ? "text-green-600" : "text-red-500"}`}>
+                    {formData.is_open ? "ABERTA" : "FECHADA"}
+                  </span>
+                  <Switch
+                    checked={formData.is_open}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, is_open: checked })
+                    }
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Delivery Settings */}
+          {/* Delivery Configuration */}
           <Card>
             <CardHeader>
-              <CardTitle>Delivery</CardTitle>
-              <CardDescription>Configurações de entrega (taxa fixa)</CardDescription>
+              <CardTitle>Áreas e Taxas de Entrega</CardTitle>
+              <CardDescription>Defina como será cobrado o frete</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+            <CardContent className="space-y-6">
+
+              <div className="space-y-4">
+                <RadioGroup
+                  defaultValue="distance"
+                  value={deliveryMode}
+                  onValueChange={(val) => setDeliveryMode(val as "fixed" | "distance")}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2 border p-4 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors flex-1">
+                    <RadioGroupItem value="fixed" id="mode-fixed" />
+                    <Label htmlFor="mode-fixed" className="cursor-pointer flex-1">Taxa Única</Label>
+                  </div>
+                  <div className="flex items-center space-x-2 border p-4 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors flex-1">
+                    <RadioGroupItem value="distance" id="mode-distance" />
+                    <Label htmlFor="mode-distance" className="cursor-pointer flex-1">Taxa por Distância</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {deliveryMode === "fixed" ? (
+                <div className="p-4 border rounded-lg bg-muted/10 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery_fee">Valor da Taxa Fixa (R$)</Label>
+                    <Input
+                      id="delivery_fee"
+                      type="number"
+                      step="0.01"
+                      className="max-w-[200px]"
+                      value={formData.delivery_fee}
+                      onChange={(e) =>
+                        setFormData({ ...formData, delivery_fee: e.target.value })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Este valor será cobrado para todos os pedidos de entrega, independente da distância.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="store_address">Endereço Base da Loja</Label>
+                    <Input
+                      id="store_address"
+                      value={formData.store_address}
+                      onChange={(e) =>
+                        setFormData({ ...formData, store_address: e.target.value })
+                      }
+                      placeholder="Rua, Número - Bairro, Cidade - UF"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Usado para calcular a distância do cliente até a loja.
+                    </p>
+                  </div>
+
+                  <DeliveryZonesManager />
+                </div>
+              )}
+
+              <div className="pt-4 border-t">
+                <div className="space-y-2 max-w-[200px]">
                   <Label htmlFor="min_order">Pedido Mínimo (R$)</Label>
                   <Input
                     id="min_order"
@@ -225,19 +287,8 @@ export default function AdminSettings() {
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="delivery_fee">Taxa de Entrega Fixa (R$)</Label>
-                  <Input
-                    id="delivery_fee"
-                    type="number"
-                    step="0.01"
-                    value={formData.delivery_fee}
-                    onChange={(e) =>
-                      setFormData({ ...formData, delivery_fee: e.target.value })
-                    }
-                  />
-                </div>
               </div>
+
             </CardContent>
           </Card>
 
@@ -268,13 +319,12 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
-          <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? "Salvando..." : "Salvar Configurações"}
-          </Button>
+          <div className="fixed bottom-6 right-6">
+            <Button size="lg" type="submit" className="shadow-xl" disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </div>
         </form>
-
-        {/* Delivery Zones - Separate from form */}
-        <DeliveryZonesManager />
       </div>
     </AdminLayout>
   );

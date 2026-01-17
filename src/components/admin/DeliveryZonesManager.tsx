@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Pencil, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface DeliveryZone {
   id: string;
@@ -118,26 +119,29 @@ export function DeliveryZonesManager() {
   };
 
   const formatCurrency = (value: number) => {
+    if (value === 0) return "Grátis";
     return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Faixas de Frete por Distância</CardTitle>
-          <CardDescription>
-            Configure o valor do frete baseado na distância até o cliente
-          </CardDescription>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <Label className="text-base">Faixas de Distância</Label>
+          <p className="text-sm text-muted-foreground">
+            Configure as taxas baseadas na distância (km)
+          </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button
+              variant="outline"
               size="sm"
+              className="text-primary hover:text-primary border-primary/20 hover:bg-primary/5"
               onClick={() => setFormData({ min_distance: "", max_distance: "", fee: "" })}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Nova Faixa
+              Nova taxa por distância
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -179,82 +183,126 @@ export function DeliveryZonesManager() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fee">Valor do Frete (R$)</Label>
-                <Input
-                  id="fee"
-                  type="number"
-                  step="0.01"
-                  value={formData.fee}
-                  onChange={(e) =>
-                    setFormData({ ...formData, fee: e.target.value })
-                  }
-                  placeholder="5.00"
-                  required
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">R$</span>
+                  <Input
+                    id="fee"
+                    type="number"
+                    step="0.01"
+                    className="pl-9"
+                    value={formData.fee}
+                    onChange={(e) =>
+                      setFormData({ ...formData, fee: e.target.value })
+                    }
+                    placeholder="0,00"
+                    required
+                  />
+                </div>
+                <p className="text-[0.8rem] text-muted-foreground">
+                  Use 0,00 para frete grátis nesta faixa.
+                </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-end">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={handleCloseDialog}
-                  className="flex-1"
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" className="flex-1" disabled={saveMutation.isPending}>
+                <Button type="submit" disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando...</p>
-        ) : zones.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Nenhuma faixa de frete configurada
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {zones.map((zone) => (
-              <div
-                key={zone.id}
-                className="flex items-center gap-4 p-3 rounded-lg border bg-card"
-              >
-                <div className="flex-1">
-                  <p className="font-medium">
-                    {zone.min_distance} km - {zone.max_distance} km
-                  </p>
-                  <p className="text-sm text-primary font-semibold">
-                    {formatCurrency(zone.fee)}
-                  </p>
-                </div>
-                <Switch
-                  checked={zone.active}
-                  onCheckedChange={(checked) =>
-                    toggleMutation.mutate({ id: zone.id, active: checked })
-                  }
-                />
-                <Button variant="ghost" size="icon" onClick={() => handleEdit(zone)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    if (confirm("Excluir esta faixa de frete?")) {
-                      deleteMutation.mutate(zone.id);
+      </div>
+
+      <div className="rounded-md border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Distância (km)</TableHead>
+              <TableHead>Taxa</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  Carregando...
+                </TableCell>
+              </TableRow>
+            ) : zones.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2">
+                    <Info className="h-8 w-8 opacity-50" />
+                    <p>Nenhuma faixa configurada.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              zones.map((zone) => (
+                <TableRow key={zone.id}>
+                  <TableCell className="font-medium">
+                    {zone.max_distance >= 999
+                      ? `Acima de ${zone.min_distance} km`
+                      : zone.min_distance === 0
+                        ? `Até ${zone.max_distance} km`
+                        : `${zone.min_distance} km a ${zone.max_distance} km`
                     }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                  </TableCell>
+                  <TableCell>
+                    {zone.fee === 0 ? (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-none">
+                        Entrega Grátis
+                      </Badge>
+                    ) : (
+                      formatCurrency(zone.fee)
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={zone.active}
+                        onCheckedChange={(checked) =>
+                          toggleMutation.mutate({ id: zone.id, active: checked })
+                        }
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {zone.active ? "Ligado" : "Desligado"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(zone)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          if (confirm("Excluir esta faixa de frete?")) {
+                            deleteMutation.mutate(zone.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }
