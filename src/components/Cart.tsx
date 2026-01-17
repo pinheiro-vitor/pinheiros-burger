@@ -2,6 +2,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, X, Plus, Minus, Send, Trash2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useState } from "react";
+import { useStoreStatus } from "@/hooks/useStoreStatus";
+import { useDelivery } from "@/hooks/useDelivery";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Substitua pelo número de WhatsApp da hamburgueria (com código do país)
 const WHATSAPP_NUMBER = "5511999999999";
@@ -11,8 +15,15 @@ export function Cart() {
     useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("pix");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { status } = useStoreStatus();
+  const { calculateFee, deliveryFee, calculating, isFixedFee } = useDelivery();
+
+  const finalTotal = totalPrice + (deliveryFee || 0);
 
   const formatPrice = (price: number) => {
     return price.toLocaleString("pt-BR", {
@@ -21,37 +32,93 @@ export function Cart() {
     });
   };
 
-  const handleSendOrder = () => {
+  const handleSendOrder = async () => {
     if (items.length === 0) return;
-    
-    const orderItems = items
-      .map(
-        (item) =>
-          `• ${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}${
-            item.observations ? `\n   _Obs: ${item.observations}_` : ""
-          }`
-      )
-      .join("\n");
 
-    const message = `🍔 *NOVO PEDIDO - PINHEIRO'S BURGER* 🎸
+    if (!status.isOpen) {
+      toast.error("A loja está fechada no momento.");
+      return;
+    }
 
-${customerName ? `*Cliente:* ${customerName}\n` : ""}${customerAddress ? `*Endereço:* ${customerAddress}\n` : ""}
+    if (deliveryFee === null) {
+      toast.error("Por favor, calcule a taxa de entrega antes de enviar o pedido.");
+      return;
+    }
+
+    if (!customerName || !customerPhone || !customerAddress) {
+      toast.error("Por favor, preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // 1. Prepare Order Data
+      const orderPayload = {
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        items: items as any, // Cast to any to satisfy JSON type
+        subtotal: totalPrice,
+        discount: 0,
+        total: finalTotal, // Includes delivery fee
+        status: "pending" as const,
+        notes: `${customerAddress} - Pagamento: ${paymentMethod}`
+      };
+
+      // 2. Save to Supabase
+      const { data, error } = await supabase
+        .from("orders")
+        .insert(orderPayload)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const orderId = data.id.slice(0, 8).toUpperCase(); // Short ID for easier reading
+
+      // 3. Prepare WhatsApp Message
+      const orderItems = items
+        .map(
+          (item) =>
+            `• ${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}${item.observations ? `\n   _Obs: ${item.observations}_` : ""
+            }`
+        )
+        .join("\n");
+
+      const message = `🍔 *PEDIDO O NOVO - #${orderId}* 🎸
+      
+*Cliente:* ${customerName}
+*Telefone:* ${customerPhone}
+*Endereço:* ${customerAddress}
+
 *ITENS:*
 ${orderItems}
 
-*TOTAL: ${formatPrice(totalPrice)}*
-
+*Subtotal:* ${formatPrice(totalPrice)}
+*Taxa de Entrega:* ${formatPrice(deliveryFee || 0)}
+*TOTAL: ${formatPrice(finalTotal)}*
 *Pagamento:* ${paymentMethod === "pix" ? "PIX" : paymentMethod === "cartao" ? "Cartão" : "Dinheiro"}
 
-Obrigado pela preferência! 🤘`;
+*ID do Pedido:* ${orderId}
 
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
-    
-    clearCart();
-    setIsOpen(false);
-    setCustomerName("");
-    setCustomerAddress("");
+--------------------------------
+_Aguarde a confirmação do atendente._ 🤘`;
+
+      const encodedMessage = encodeURIComponent(message);
+      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, "_blank");
+
+      toast.success("Pedido enviado com sucesso!");
+      clearCart();
+      setIsOpen(false);
+      setCustomerName("");
+      setCustomerPhone("");
+      setCustomerAddress("");
+    } catch (error) {
+      console.error("Error saving order:", error);
+      toast.error("Erro ao salvar pedido. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -61,7 +128,10 @@ Obrigado pela preferência! 🤘`;
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/40"
+        className={`fixed bottom-6 right-6 z-30 flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-colors ${status.isOpen
+          ? "bg-primary text-primary-foreground shadow-primary/40"
+          : "bg-gray-500 text-white hover:bg-gray-600 grayscale"
+          }`}
       >
         <ShoppingBag className="h-6 w-6" />
         {totalItems > 0 && (
@@ -101,6 +171,11 @@ Obrigado pela preferência! 🤘`;
                 <h2 className="font-display text-2xl tracking-wider">
                   SEU PEDIDO
                 </h2>
+                {!status.isOpen && (
+                  <span className="text-xs font-bold text-red-500 bg-red-100 px-2 py-1 rounded-full uppercase ml-2">
+                    Loja Fechada
+                  </span>
+                )}
                 <button
                   onClick={() => setIsOpen(false)}
                   className="rounded-full p-2 hover:bg-secondary"
@@ -184,12 +259,36 @@ Obrigado pela preferência! 🤘`;
                         className="w-full rounded-lg bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                       />
                       <input
-                        type="text"
-                        placeholder="Endereço de entrega"
-                        value={customerAddress}
-                        onChange={(e) => setCustomerAddress(e.target.value)}
+                        type="tel"
+                        placeholder="Seu WhatsApp (obrigatório)"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
                         className="w-full rounded-lg bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                       />
+
+                      {/* Delivery Calculation */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Endereço de entrega"
+                          value={customerAddress}
+                          onChange={(e) => setCustomerAddress(e.target.value)}
+                          className="flex-1 rounded-lg bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                        <button
+                          onClick={calculateFee}
+                          disabled={calculating}
+                          className="px-4 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors border border-border"
+                          title="Calcular frete por geolocalização"
+                        >
+                          {calculating ? (
+                            <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          ) : (
+                            <Send className="h-5 w-5 rotate-[-90deg]" />
+                          )}
+                        </button>
+                      </div>
+
                       <select
                         value={paymentMethod}
                         onChange={(e) => setPaymentMethod(e.target.value)}
@@ -207,20 +306,43 @@ Obrigado pela preferência! 🤘`;
               {/* Footer */}
               {items.length > 0 && (
                 <div className="border-t border-border p-4">
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-display text-3xl text-primary">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="font-medium text-foreground">
                       {formatPrice(totalPrice)}
                     </span>
                   </div>
+
+                  {deliveryFee !== null && (
+                    <div className="mb-4 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Taxa de Entrega</span>
+                      <span className="font-medium text-foreground">
+                        {formatPrice(deliveryFee)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mb-4 flex items-center justify-between border-t border-dashed border-border pt-4">
+                    <span className="font-bold text-lg">Total</span>
+                    <span className="font-display text-3xl text-primary">
+                      {formatPrice(finalTotal)}
+                    </span>
+                  </div>
+
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleSendOrder}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-4 font-display text-lg tracking-wider text-white shadow-lg shadow-green-600/30"
+                    disabled={isSubmitting || !status.isOpen}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-display text-lg tracking-wider text-white shadow-lg transition-all ${status.isOpen
+                      ? "bg-green-600 shadow-green-600/30 hover:bg-green-700"
+                      : "bg-gray-400 cursor-not-allowed shadow-gray-400/30"
+                      } disabled:opacity-70 disabled:cursor-not-allowed`}
                   >
                     <Send className="h-5 w-5" />
-                    ENVIAR PEDIDO VIA WHATSAPP
+                    {status.isOpen
+                      ? (isSubmitting ? "ENVIANDO..." : "ENVIAR PEDIDO VIA WHATSAPP")
+                      : "LOJA FECHADA"}
                   </motion.button>
                 </div>
               )}
