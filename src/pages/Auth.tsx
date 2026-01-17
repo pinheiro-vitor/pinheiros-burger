@@ -38,7 +38,7 @@ export default function Auth() {
           if (roles?.role === "admin") {
             navigate("/admin");
           } else {
-            navigate("/");
+            navigate("/cardapio");
           }
         }, 0);
       }
@@ -56,7 +56,7 @@ export default function Auth() {
           if (roles?.role === "admin") {
             navigate("/admin");
           } else {
-            navigate("/");
+            navigate("/cardapio");
           }
         }, 0);
       }
@@ -203,8 +203,8 @@ export default function Auth() {
               {isLoading
                 ? "Carregando..."
                 : isSignUp
-                ? "Criar conta"
-                : "Entrar"}
+                  ? "Criar conta"
+                  : "Entrar"}
             </Button>
           </form>
 
