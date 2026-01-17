@@ -55,13 +55,29 @@ export default function AdminOrders() {
     },
   });
 
+  // Sound Effect
+  const playAlert = () => {
+    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3");
+    audio.volume = 0.7;
+    audio.play().catch(e => console.error("Audio error", e));
+  };
+
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
       .channel("orders-changes")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+          toast.info(`Novo pedido recebido! #${payload.new.id.slice(0, 5)}`);
+          playAlert();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
         }
@@ -92,6 +108,66 @@ export default function AdminOrders() {
 
   const formatPrice = (price: number) => {
     return price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
+  // Printing Logic using a simple window popup for now (easiest React way without specific libraries)
+  const handlePrint = (order: Order) => {
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!printWindow) return;
+
+    // Basic HTML structure for print
+    // Ideally we would reuse TicketReceipt here, but rendering React to string from client is tricky without ReactDOMServer
+    // So we'll build a simple HTML receipt
+
+    const itemsHtml = Array.isArray(order.items) ? order.items.map((item: any) => `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>${item.quantity}x ${item.name}</span>
+            <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
+        </div>
+        ${item.observations ? `<div style="font-size: 10px; font-style: italic; margin-top: -3px; margin-bottom: 5px;">Obs: ${item.observations}</div>` : ''}
+      `).join('') : '';
+
+    printWindow.document.write(`
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Courier New', monospace; padding: 20px; width: 300px; margin: 0 auto; }
+                h1, h2, p { margin: 0; }
+                .divider { border-bottom: 1px dashed black; margin: 10px 0; }
+                .text-center { text-align: center; }
+                .bold { font-weight: bold; }
+                .flex { display: flex; justify-content: space-between; }
+            </style>
+        </head>
+        <body>
+            <div class="text-center">
+                <h2 class="bold">PINHEIROS BURGUER</h2>
+                <p>PEDIDO #${order.id.slice(0, 8).toUpperCase()}</p>
+                <p>${format(new Date(order.created_at), "dd/MM/yyyy HH:mm")}</p>
+            </div>
+            <div class="divider"></div>
+            <div>
+                <p class="bold">${order.customer_name}</p>
+                <p>${order.customer_phone}</p>
+                <p>${order.notes || ''}</p>
+            </div>
+            <div class="divider"></div>
+            <div>
+                ${itemsHtml}
+            </div>
+            <div class="divider"></div>
+            <div class="flex"><span>Subtotal</span><span>R$ ${order.subtotal.toFixed(2)}</span></div>
+            ${order.discount > 0 ? `<div class="flex"><span>Desconto</span><span>-R$ ${order.discount.toFixed(2)}</span></div>` : ''}
+            <div class="flex"><span>Taxa Entrega</span><span>R$ ${(order.total - order.subtotal + order.discount).toFixed(2)}</span></div>
+            <div class="divider"></div>
+            <div class="flex bold" style="font-size: 18px;"><span>TOTAL</span><span>R$ ${order.total.toFixed(2)}</span></div>
+            <script>
+                window.onload = function() { window.print(); window.close(); }
+            </script>
+        </body>
+        </html>
+      `);
+    printWindow.document.close();
   };
 
   return (
@@ -129,7 +205,7 @@ export default function AdminOrders() {
               const items = Array.isArray(order.items) ? order.items : [];
 
               return (
-                <Card key={order.id}>
+                <Card key={order.id} className={`${order.status === 'pending' ? 'border-yellow-400 border-2' : ''}`}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">
@@ -175,7 +251,11 @@ export default function AdminOrders() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" className="w-full" onClick={() => handlePrint(order)}>
+                        🖨️ Imprimir
+                      </Button>
+
                       {order.status === "pending" && (
                         <Button
                           variant="destructive"
@@ -188,6 +268,7 @@ export default function AdminOrders() {
                           Cancelar
                         </Button>
                       )}
+
                       {nextStatus && (
                         <Button
                           size="sm"

@@ -19,11 +19,80 @@ export function Cart() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("pix");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+
+  // Coupon State
+  const [couponCode, setCouponCode] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   const { status } = useStoreStatus();
   const { calculateFee, deliveryFee, calculating, isFixedFee } = useDelivery();
 
-  const finalTotal = totalPrice + (deliveryFee || 0);
+  const finalTotal = Math.max(0, totalPrice + (deliveryFee || 0) - discountAmount);
+
+  const handleValidateCoupon = async () => {
+    if (!couponCode) return;
+    setIsValidatingCoupon(true);
+    try {
+      const { data, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("code", couponCode.toUpperCase())
+        .eq("active", true)
+        .maybeSingle(); // Use maybeSingle to avoid 406 error on no rows
+
+      if (error) throw error;
+
+      if (!data) {
+        toast.error("Cupom inválido ou não encontrado.");
+        setAppliedCoupon(null);
+        setDiscountAmount(0);
+        return;
+      }
+
+      // Validation Checks
+      const now = new Date();
+      if (data.expires_at && new Date(data.expires_at) < now) {
+        toast.error("Este cupom expirou.");
+        return;
+      }
+
+      if (data.min_order_value && totalPrice < data.min_order_value) {
+        toast.error(`Pedido mínimo para este cupom: ${formatPrice(data.min_order_value)}`);
+        return;
+      }
+
+      if (data.max_uses && data.current_uses >= data.max_uses) {
+        toast.error("Este cupom atingiu o limite de usos.");
+        return;
+      }
+
+      // Calculate Discount
+      let discount = 0;
+      if (data.discount_type === 'percentage') {
+        discount = (totalPrice * data.discount_value) / 100;
+      } else {
+        discount = data.discount_value;
+      }
+
+      // Cap discount at total price (free meal but not negative)
+      discount = Math.min(discount, totalPrice);
+
+      setDiscountAmount(discount);
+      setAppliedCoupon(data);
+      toast.success("Voucher aplicado com sucesso! 🤘");
+      // Assuming playSound is defined elsewhere or remove this line if not
+      // playSound("add"); // Use the 'add' sound for positive feedback
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao validar cupom.");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
 
   const formatPrice = (price: number) => {
     return price.toLocaleString("pt-BR", {
@@ -59,10 +128,10 @@ export function Cart() {
         customer_phone: customerPhone,
         items: items as any, // Cast to any to satisfy JSON type
         subtotal: totalPrice,
-        discount: 0,
-        total: finalTotal, // Includes delivery fee
+        discount: discountAmount,
+        total: finalTotal, // Includes delivery fee and discount
         status: "pending" as const,
-        notes: `${customerAddress} - Pagamento: ${paymentMethod}`
+        notes: `${customerAddress} - Pagamento: ${paymentMethod}${appliedCoupon ? ` - CUPOM: ${appliedCoupon.code}` : ''}`
       };
 
       // 2. Save to Supabase
@@ -275,19 +344,72 @@ _Aguarde a confirmação do atendente._ 🤘`;
                           onChange={(e) => setCustomerAddress(e.target.value)}
                           className="flex-1 rounded-lg bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                         />
-                        <button
-                          onClick={calculateFee}
-                          disabled={calculating}
-                          className="px-4 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors border border-border"
-                          title="Calcular frete por geolocalização"
-                        >
-                          {calculating ? (
-                            <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                          ) : (
-                            <Send className="h-5 w-5 rotate-[-90deg]" />
-                          )}
-                        </button>
+                        {!isFixedFee && (
+                          <button
+                            onClick={calculateFee}
+                            disabled={calculating}
+                            className="px-4 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors border border-border"
+                            title="Calcular frete por geolocalização"
+                          >
+                            {calculating ? (
+                              <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            ) : (
+                              <Send className="h-5 w-5 rotate-[-90deg]" />
+                            )}
+                          </button>
+                        )}
                       </div>
+
+                      {isFixedFee && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 font-medium px-2">
+                          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                          Taxa de entrega fixa aplicada
+                        </div>
+                      )}
+
+                      {/* Coupon Section */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Cupom (Voucher VIP)"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          disabled={!!appliedCoupon}
+                          className="flex-1 rounded-lg bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                        {appliedCoupon ? (
+                          <button
+                            onClick={() => {
+                              setAppliedCoupon(null);
+                              setCouponCode("");
+                              setDiscountAmount(0);
+                              // If the applied coupon was for free delivery, reset delivery fee if not fixed by other means
+                              if (appliedCoupon.type === "delivery_fee") {
+                                setDeliveryFee(null); // Or recalculate if there's a default fee
+                                setIsFixedFee(false);
+                              }
+                              toast.info("Cupom removido.");
+                            }}
+                            className="px-4 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 font-bold transition-colors"
+                          >
+                            X
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleValidateCoupon}
+                            disabled={!couponCode || isValidatingCoupon}
+                            className="px-4 rounded-lg bg-secondary hover:bg-secondary/80 font-bold text-xs uppercase tracking-wide transition-colors border border-border"
+                          >
+                            {isValidatingCoupon ? "..." : "Aplicar"}
+                          </button>
+                        )}
+                      </div>
+                      {appliedCoupon && (
+                        <div className="text-xs text-green-600 font-bold px-2 flex justify-between">
+                          <span>Voucher aplicado: {appliedCoupon.code}</span>
+                          {discountAmount > 0 && <span>-{formatPrice(discountAmount)}</span>}
+                        </div>
+                      )}
 
                       <select
                         value={paymentMethod}

@@ -7,6 +7,7 @@ interface TicketReceiptProps {
     customerAddress: string;
     items: any[];
     subtotal: number;
+    discount: number;
     deliveryFee: number;
     total: number;
     paymentMethod: string;
@@ -18,6 +19,7 @@ export function TicketReceipt({
     customerAddress,
     items,
     subtotal,
+    discount,
     deliveryFee,
     total,
     paymentMethod,
@@ -83,6 +85,12 @@ export function TicketReceipt({
                         <span>Subtotal</span>
                         <span>{formatPrice(subtotal)}</span>
                     </div>
+                    {discount > 0 && (
+                        <div className="flex justify-between text-green-600 font-bold">
+                            <span>Desconto (VIP)</span>
+                            <span>-{formatPrice(discount)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between">
                         <span>Taxa de Entrega</span>
                         <span>{formatPrice(deliveryFee)}</span>
