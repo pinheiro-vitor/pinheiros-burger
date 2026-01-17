@@ -247,14 +247,56 @@ export function MenuProducts() {
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="image_url">URL da Imagem</Label>
-                <Input
-                  id="image_url"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="https://..."
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="image">Imagem do Produto</Label>
+                  <div className="flex gap-4 items-center">
+                    {formData.image_url && (
+                      <div className="w-20 h-20 rounded-md overflow-hidden border">
+                        <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            // Upload logic
+                            const fileExt = file.name.split('.').pop();
+                            const fileName = `${crypto.randomUUID()}.${fileExt}`;
+                            const filePath = `${fileName}`;
+
+                            const toastId = toast.loading("Enviando imagem...");
+
+                            try {
+                              const { error: uploadError } = await supabase.storage
+                                .from('menu-images')
+                                .upload(filePath, file);
+
+                              if (uploadError) throw uploadError;
+
+                              const { data: { publicUrl } } = supabase.storage
+                                .from('menu-images')
+                                .getPublicUrl(filePath);
+
+                              setFormData({ ...formData, image_url: publicUrl });
+                              toast.success("Imagem enviada!", { id: toastId });
+                            } catch (error) {
+                              console.error(error);
+                              toast.error("Erro ao enviar imagem", { id: toastId });
+                            }
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Selecione uma imagem do seu computador.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={handleCloseDialog} className="flex-1">

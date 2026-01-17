@@ -69,8 +69,8 @@ export function AdminHeader() {
             <PopoverTrigger asChild>
               <button
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${status.isOpen
-                    ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                    : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
+                  ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                  : "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
                   }`}
               >
                 <Store className="h-4 w-4" />
@@ -155,9 +155,9 @@ export function AdminHeader() {
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-              A
+              F
             </div>
-            <span className="hidden sm:block">Admin</span>
+            <span className="hidden sm:block">Funcionário</span>
           </div>
         </div>
       </div>
