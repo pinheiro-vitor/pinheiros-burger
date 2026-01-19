@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, X, Plus, Minus, Send, Trash2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStoreStatus } from "@/hooks/useStoreStatus";
 import { useDelivery } from "@/hooks/useDelivery";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,7 +20,6 @@ export function Cart() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("pix");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
 
   // Coupon State
   const [couponCode, setCouponCode] = useState("");
@@ -28,7 +28,27 @@ export function Cart() {
   const [discountAmount, setDiscountAmount] = useState(0);
 
   const { status } = useStoreStatus();
-  const { calculateFee, deliveryFee, calculating, isFixedFee } = useDelivery();
+  const { calculateFee, deliveryFee, setDeliveryFee, calculating, isFixedFee, setIsFixedFee } = useDelivery();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && isOpen) {
+      const fetchProfile = async () => {
+        const { data } = await supabase
+          .from("profiles")
+          .select("full_name, phone, address")
+          .eq("user_id", user.id)
+          .single();
+
+        if (data) {
+          if (!customerName) setCustomerName(data.full_name || "");
+          if (!customerPhone) setCustomerPhone(data.phone || "");
+          if (!customerAddress) setCustomerAddress(data.address || "");
+        }
+      };
+      fetchProfile();
+    }
+  }, [user, isOpen]);
 
   const finalTotal = Math.max(0, totalPrice + (deliveryFee || 0) - discountAmount);
 
@@ -41,7 +61,7 @@ export function Cart() {
         .select("*")
         .eq("code", couponCode.toUpperCase())
         .eq("active", true)
-        .maybeSingle(); // Use maybeSingle to avoid 406 error on no rows
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -77,14 +97,13 @@ export function Cart() {
         discount = data.discount_value;
       }
 
-      // Cap discount at total price (free meal but not negative)
+      // Cap discount at total price
       discount = Math.min(discount, totalPrice);
 
       setDiscountAmount(discount);
       setAppliedCoupon(data);
       toast.success("Voucher aplicado com sucesso! 🤘");
-      // Assuming playSound is defined elsewhere or remove this line if not
-      // playSound("add"); // Use the 'add' sound for positive feedback
+      // playSound("add"); 
 
     } catch (err) {
       console.error(err);
@@ -110,6 +129,7 @@ export function Cart() {
     }
 
     if (deliveryFee === null) {
+      // Allow fixed fee from coupon or manual override if implemented, checking explicit null
       toast.error("Por favor, calcule a taxa de entrega antes de enviar o pedido.");
       return;
     }
@@ -124,12 +144,13 @@ export function Cart() {
     try {
       // 1. Prepare Order Data
       const orderPayload = {
+        user_id: user?.id || null, // Link to user if logged in
         customer_name: customerName,
         customer_phone: customerPhone,
-        items: items as any, // Cast to any to satisfy JSON type
+        items: items as any,
         subtotal: totalPrice,
         discount: discountAmount,
-        total: finalTotal, // Includes delivery fee and discount
+        total: finalTotal,
         status: "pending" as const,
         notes: `${customerAddress} - Pagamento: ${paymentMethod}${appliedCoupon ? ` - CUPOM: ${appliedCoupon.code}` : ''}`
       };
@@ -143,7 +164,19 @@ export function Cart() {
 
       if (error) throw error;
 
-      const orderId = data.id.slice(0, 8).toUpperCase(); // Short ID for easier reading
+      // 2.1 Update Profile Address if Changed (Optional but nice)
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({
+            address: customerAddress,
+            phone: customerPhone,
+            full_name: customerName
+          })
+          .eq("user_id", user.id);
+      }
+
+      const orderId = data.id.slice(0, 8).toUpperCase();
 
       // 3. Prepare WhatsApp Message
       const orderItems = items
@@ -179,9 +212,12 @@ _Aguarde a confirmação do atendente._ 🤘`;
       toast.success("Pedido enviado com sucesso!");
       clearCart();
       setIsOpen(false);
-      setCustomerName("");
-      setCustomerPhone("");
-      setCustomerAddress("");
+      // Don't clear customer info if logged in logic handles it, but acceptable to clear form state
+      if (!user) {
+        setCustomerName("");
+        setCustomerPhone("");
+        setCustomerAddress("");
+      }
     } catch (error) {
       console.error("Error saving order:", error);
       toast.error("Erro ao salvar pedido. Tente novamente.");
@@ -192,7 +228,6 @@ _Aguarde a confirmação do atendente._ 🤘`;
 
   return (
     <>
-      {/* Floating cart button */}
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
@@ -214,11 +249,9 @@ _Aguarde a confirmação do atendente._ 🤘`;
         )}
       </motion.button>
 
-      {/* Cart drawer */}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -227,7 +260,6 @@ _Aguarde a confirmação do atendente._ 🤘`;
               className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
             />
 
-            {/* Drawer */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -235,7 +267,6 @@ _Aguarde a confirmação do atendente._ 🤘`;
               transition={{ type: "spring", damping: 25 }}
               className="fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-md flex-col bg-background border-l border-border"
             >
-              {/* Header */}
               <div className="flex items-center justify-between border-b border-border p-4">
                 <h2 className="font-display text-2xl tracking-wider">
                   SEU PEDIDO
@@ -253,7 +284,6 @@ _Aguarde a confirmação do atendente._ 🤘`;
                 </button>
               </div>
 
-              {/* Items */}
               <div className="flex-1 overflow-y-auto p-4">
                 {items.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
@@ -318,8 +348,8 @@ _Aguarde a confirmação do atendente._ 🤘`;
                       </motion.div>
                     ))}
 
-                    {/* Customer info */}
                     <div className="space-y-3 border-t border-border pt-4">
+                      {user && <p className="text-xs text-primary font-bold">Logado como: {user.email}</p>}
                       <input
                         type="text"
                         placeholder="Seu nome"
@@ -335,7 +365,6 @@ _Aguarde a confirmação do atendente._ 🤘`;
                         className="w-full rounded-lg bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                       />
 
-                      {/* Delivery Calculation */}
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -367,7 +396,6 @@ _Aguarde a confirmação do atendente._ 🤘`;
                         </div>
                       )}
 
-                      {/* Coupon Section */}
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -383,9 +411,8 @@ _Aguarde a confirmação do atendente._ 🤘`;
                               setAppliedCoupon(null);
                               setCouponCode("");
                               setDiscountAmount(0);
-                              // If the applied coupon was for free delivery, reset delivery fee if not fixed by other means
                               if (appliedCoupon.type === "delivery_fee") {
-                                setDeliveryFee(null); // Or recalculate if there's a default fee
+                                setDeliveryFee(null);
                                 setIsFixedFee(false);
                               }
                               toast.info("Cupom removido.");
@@ -425,7 +452,6 @@ _Aguarde a confirmação do atendente._ 🤘`;
                 )}
               </div>
 
-              {/* Footer */}
               {items.length > 0 && (
                 <div className="border-t border-border p-4">
                   <div className="mb-2 flex items-center justify-between text-sm">
