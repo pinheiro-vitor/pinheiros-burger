@@ -8,12 +8,19 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ProductDetail from "./pages/ProductDetail";
 import Auth from "./pages/Auth";
+
+// Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminMenu from "./pages/admin/Menu";
 import AdminOrders from "./pages/admin/Orders";
 import AdminCoupons from "./pages/admin/Coupons";
 import AdminReports from "./pages/admin/Reports";
 import AdminSettings from "./pages/admin/Settings";
+
+// Customer App Pages
+import CustomerOrders from "./pages/app/Orders";
+import CustomerProfile from "./pages/app/Profile";
+
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -29,6 +36,10 @@ const App = () => (
           <Route path="/cardapio" element={<Index />} />
           <Route path="/produto/:productId" element={<ProductDetail />} />
           <Route path="/auth" element={<Auth />} />
+
+          {/* Customer Routes */}
+          <Route path="/app/pedidos" element={<ProtectedRoute><CustomerOrders /></ProtectedRoute>} />
+          <Route path="/app/perfil" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
 
           {/* Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
