@@ -152,9 +152,11 @@ export function useDelivery() {
     return {
         calculateFee,
         deliveryFee,
+        setDeliveryFee,
         distance,
         calculating,
         userLocation,
-        isFixedFee
+        isFixedFee,
+        setIsFixedFee
     };
 }
