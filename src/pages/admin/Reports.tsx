@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { CustomerRanking } from "@/components/admin/CustomerRanking";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +66,7 @@ export default function AdminReports() {
       dailyData[date].orders += 1;
     });
 
-    const chartData = Object.values(dailyData).sort((a, b) => 
+    const chartData = Object.values(dailyData).sort((a, b) =>
       a.date.localeCompare(b.date)
     );
 
@@ -231,6 +232,9 @@ export default function AdminReports() {
             )}
           </CardContent>
         </Card>
+
+        {/* Customer Ranking */}
+        <CustomerRanking />
       </div>
     </AdminLayout>
   );
