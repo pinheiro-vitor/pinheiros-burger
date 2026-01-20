@@ -17,6 +17,8 @@ export interface StoreStatus {
     schedule: WeeklySchedule | null;
 }
 
+import { useEffect } from "react";
+
 export function useStoreStatus() {
     const queryClient = useQueryClient();
 
@@ -34,6 +36,27 @@ export function useStoreStatus() {
         // Refresh every minute to ensure open/close status is current
         refetchInterval: 60000,
     });
+
+    useEffect(() => {
+        const channel = supabase
+            .channel("store_settings_changes")
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "store_settings",
+                },
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ["store_settings"] });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient]);
 
     const toggleStatus = useMutation({
         mutationFn: async (isOpen: boolean) => {

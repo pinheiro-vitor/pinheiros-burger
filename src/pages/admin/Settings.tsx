@@ -58,7 +58,7 @@ export default function AdminSettings() {
   });
 
   const { data: settings, isLoading } = useQuery({
-    queryKey: ["store-settings"],
+    queryKey: ["store_settings"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_settings")
@@ -115,7 +115,7 @@ export default function AdminSettings() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["store-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["store_settings"] });
       toast.success("Configurações salvas com sucesso");
     },
     onError: () => {
@@ -194,8 +194,45 @@ export default function AdminSettings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${formData.is_open ? "text-green-600" : "text-red-500"}`}>
-                    {formData.is_open ? "ABERTA" : "FECHADA"}
+                  <span className={`text-sm font-medium ${(() => {
+                    if (!formData.is_open) return "text-red-500";
+
+                    // Check schedule logic locally to show accurate status preview
+                    const now = new Date();
+                    const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+                    const dayName = days[now.getDay()];
+                    const todayHours = formData.opening_hours?.[dayName];
+
+                    if (!todayHours?.open || !todayHours?.close) return "text-red-500";
+
+                    const formatTime = (date: Date) =>
+                      `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    const currentTime = formatTime(now);
+
+                    const isOpenBySchedule = currentTime >= todayHours.open &&
+                      (todayHours.close === "00:00" ? true : currentTime < todayHours.close);
+
+                    return isOpenBySchedule ? "text-green-600" : "text-orange-500";
+                  })()}`}>
+                    {(() => {
+                      if (!formData.is_open) return "FECHADA";
+
+                      const now = new Date();
+                      const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+                      const dayName = days[now.getDay()];
+                      const todayHours = formData.opening_hours?.[dayName];
+
+                      if (!todayHours?.open || !todayHours?.close) return "FECHADA (Sem Horário)";
+
+                      const formatTime = (date: Date) =>
+                        `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                      const currentTime = formatTime(now);
+
+                      const isOpenBySchedule = currentTime >= todayHours.open &&
+                        (todayHours.close === "00:00" ? true : currentTime < todayHours.close);
+
+                      return isOpenBySchedule ? "ABERTA" : "FECHADA (Horário)";
+                    })()}
                   </span>
                   <Switch
                     checked={formData.is_open}
