@@ -13,6 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  ChefHat,
+  Box,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -30,6 +33,9 @@ const navItems: NavItem[] = [
   { href: "/admin/cardapio", label: "Cardápio", icon: <MenuSquare className="h-5 w-5" /> },
   { href: "/admin/pedidos", label: "Pedidos", icon: <ListOrdered className="h-5 w-5" /> },
   { href: "/admin/cupons", label: "Cupons", icon: <Tag className="h-5 w-5" /> },
+  { href: "/admin/kds", label: "Modo Cozinha", icon: <ChefHat className="h-5 w-5" /> },
+  { href: "/admin/estoque", label: "Estoque/Desp.", icon: <Box className="h-5 w-5" /> },
+  { href: "/admin/financeiro", label: "Financeiro", icon: <DollarSign className="h-5 w-5" /> },
   { href: "/admin/relatorios", label: "Relatórios", icon: <BarChart3 className="h-5 w-5" /> },
   { href: "/admin/configuracoes", label: "Configurações", icon: <Settings className="h-5 w-5" /> },
 ];

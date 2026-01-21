@@ -55,7 +55,11 @@ export default function AdminSettings() {
     delivery_fee: "",
     opening_hours: defaultHours,
     store_address: "",
+    store_lat: "",
+    store_lng: "",
   });
+
+  const [isLoadingCoords, setIsLoadingCoords] = useState(false);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["store_settings"],
@@ -80,6 +84,8 @@ export default function AdminSettings() {
         delivery_fee: settings.delivery_fee?.toString() || "",
         opening_hours: settings.opening_hours || defaultHours,
         store_address: settings.store_address || "",
+        store_lat: settings.store_lat?.toString() || "",
+        store_lng: settings.store_lng?.toString() || "",
       });
 
       if (settings.delivery_fee !== null) {
@@ -101,6 +107,8 @@ export default function AdminSettings() {
         delivery_fee: deliveryMode === "fixed" && data.delivery_fee ? parseFloat(data.delivery_fee) : null,
         opening_hours: data.opening_hours,
         store_address: data.store_address || null,
+        store_lat: data.store_lat ? parseFloat(data.store_lat) : null,
+        store_lng: data.store_lng ? parseFloat(data.store_lng) : null,
       };
 
       if (settings?.id) {
@@ -122,6 +130,40 @@ export default function AdminSettings() {
       toast.error("Erro ao salvar configurações");
     },
   });
+
+  const handleSearchLocation = async () => {
+    if (!formData.store_address) {
+      toast.error("Digite um endereço primeiro.");
+      return;
+    }
+
+    setIsLoadingCoords(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          formData.store_address
+        )}`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setFormData((prev) => ({
+          ...prev,
+          store_lat: lat,
+          store_lng: lon,
+        }));
+        toast.success("Coordenadas encontradas!");
+      } else {
+        toast.error("Endereço não encontrado. Tente ser mais específico.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao buscar coordenadas.");
+    } finally {
+      setIsLoadingCoords(false);
+    }
+  };
 
   const updateHour = (day: string, field: "open" | "close", value: string) => {
     setFormData((prev) => ({
@@ -294,17 +336,48 @@ export default function AdminSettings() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="store_address">Endereço Base da Loja</Label>
-                    <Input
-                      id="store_address"
-                      value={formData.store_address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, store_address: e.target.value })
-                      }
-                      placeholder="Rua, Número - Bairro, Cidade - UF"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="store_address"
+                        value={formData.store_address}
+                        onChange={(e) =>
+                          setFormData({ ...formData, store_address: e.target.value })
+                        }
+                        placeholder="Rua, Número - Bairro, Cidade - UF"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSearchLocation}
+                        disabled={isLoadingCoords}
+                      >
+                        {isLoadingCoords ? "Buscando..." : "Buscar Coordenadas"}
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      Usado para calcular a distância do cliente até a loja.
+                      Digite o endereço e clique em "Buscar Coordenadas" para ativar o cálculo de frete.
                     </p>
+
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="lat" className="text-xs">Latitude</Label>
+                        <Input
+                          id="lat"
+                          value={formData.store_lat}
+                          onChange={(e) => setFormData({ ...formData, store_lat: e.target.value })}
+                          placeholder="-23.5505"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="lng" className="text-xs">Longitude</Label>
+                        <Input
+                          id="lng"
+                          value={formData.store_lng}
+                          onChange={(e) => setFormData({ ...formData, store_lng: e.target.value })}
+                          placeholder="-46.6333"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <DeliveryZonesManager />

@@ -143,6 +143,107 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          date?: string
+          description: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          created_at: string
+          id: string
+          last_cost: number | null
+          min_stock_alert: number
+          name: string
+          quantity: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_cost?: number | null
+          min_stock_alert?: number
+          name: string
+          quantity?: number
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_cost?: number | null
+          min_stock_alert?: number
+          name?: string
+          quantity?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_transactions: {
+        Row: {
+          cost: number | null
+          created_at: string
+          id: string
+          item_id: string
+          notes: string | null
+          quantity: number
+          type: string
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          item_id: string
+          notes?: string | null
+          quantity: number
+          type: string
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          notes?: string | null
+          quantity?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       option_groups: {
         Row: {
           active: boolean
