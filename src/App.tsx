@@ -14,7 +14,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import AdminMenu from "./pages/admin/Menu";
 import AdminOrders from "./pages/admin/Orders";
 import AdminCoupons from "./pages/admin/Coupons";
-import AdminReports from "./pages/admin/Reports";
+
 import AdminSettings from "./pages/admin/Settings";
 import KitchenDisplay from "./pages/admin/KitchenDisplay";
 import AdminStock from "./pages/admin/Stock";
@@ -49,7 +49,7 @@ const App = () => (
           <Route path="/admin/cardapio" element={<ProtectedRoute requireAdmin><AdminMenu /></ProtectedRoute>} />
           <Route path="/admin/pedidos" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
           <Route path="/admin/cupons" element={<ProtectedRoute requireAdmin><AdminCoupons /></ProtectedRoute>} />
-          <Route path="/admin/relatorios" element={<ProtectedRoute requireAdmin><AdminReports /></ProtectedRoute>} />
+
           <Route path="/admin/configuracoes" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
           <Route path="/admin/kds" element={<ProtectedRoute requireAdmin><KitchenDisplay /></ProtectedRoute>} />
           <Route path="/admin/estoque" element={<ProtectedRoute requireAdmin><AdminStock /></ProtectedRoute>} />

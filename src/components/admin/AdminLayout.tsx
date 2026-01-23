@@ -36,7 +36,6 @@ const navItems: NavItem[] = [
   { href: "/admin/kds", label: "Modo Cozinha", icon: <ChefHat className="h-5 w-5" /> },
   { href: "/admin/estoque", label: "Estoque/Desp.", icon: <Box className="h-5 w-5" /> },
   { href: "/admin/financeiro", label: "Financeiro", icon: <DollarSign className="h-5 w-5" /> },
-  { href: "/admin/relatorios", label: "Relatórios", icon: <BarChart3 className="h-5 w-5" /> },
   { href: "/admin/configuracoes", label: "Configurações", icon: <Settings className="h-5 w-5" /> },
 ];
 
