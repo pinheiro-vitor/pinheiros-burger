@@ -1,11 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, ChefHat, CheckCircle } from "lucide-react";
-import { format } from "date-fns";
+import { Clock, ChefHat, CheckCircle, AlertTriangle } from "lucide-react";
+import { format, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -19,6 +19,29 @@ interface Order {
     notes: string | null;
     created_at: string;
 }
+
+const Timer = ({ startTime }: { startTime: string }) => {
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const start = new Date(startTime);
+    const diffSeconds = differenceInSeconds(now, start);
+    const minutes = Math.floor(diffSeconds / 60);
+    const seconds = diffSeconds % 60;
+    const isLate = minutes >= 20;
+
+    return (
+        <div className={`flex items-center gap-2 font-mono text-xl font-bold ${isLate ? "text-red-500 animate-pulse" : "text-neutral-400"}`}>
+            {isLate && <AlertTriangle className="h-5 w-5" />}
+            <Clock className="h-5 w-5" />
+            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+        </div>
+    );
+};
 
 export default function KitchenDisplay() {
     const queryClient = useQueryClient();
@@ -96,75 +119,82 @@ export default function KitchenDisplay() {
                         <p className="text-2xl font-bold">Tudo limpo por aqui chef!</p>
                     </div>
                 ) : (
-                    orders.map((order) => (
-                        <Card
-                            key={order.id}
-                            className={`border-4 shadow-xl ${order.status === "pending"
-                                ? "border-yellow-500 bg-neutral-800"
-                                : "border-orange-600 bg-neutral-800"
-                                }`}
-                        >
-                            <CardHeader className="pb-2 bg-black/20">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <CardTitle className="text-2xl font-black text-white">
-                                            #{order.id.slice(0, 5).toUpperCase()}
-                                        </CardTitle>
-                                        <p className="text-sm text-neutral-400 font-mono mt-1">
-                                            {format(new Date(order.created_at), "HH:mm")}
-                                        </p>
-                                    </div>
-                                    <Badge
-                                        className={`text-lg px-3 py-1 ${order.status === "pending"
-                                            ? "bg-yellow-500 hover:bg-yellow-600 text-black"
-                                            : "bg-orange-600 hover:bg-orange-700 text-white"
-                                            }`}
-                                    >
-                                        {order.status === "pending" ? "NOVO" : "PREPARO"}
-                                    </Badge>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="pt-4 space-y-4">
-                                <div className="space-y-4">
-                                    {/* Items List - Large Text for Kitchen */}
-                                    {Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
-                                        <div key={idx} className="border-b border-neutral-700 pb-2 last:border-0 last:pb-0">
-                                            <div className="flex items-start gap-3">
-                                                <span className="font-black text-2xl text-yellow-400 min-w-[2rem]">
-                                                    {item.quantity}x
-                                                </span>
-                                                <div>
-                                                    <span className="font-bold text-xl text-white leading-tight block">
-                                                        {item.name}
-                                                    </span>
-                                                    {item.observations && (
-                                                        <p className="text-red-400 font-bold text-lg mt-1 bg-red-900/30 p-1 rounded">
-                                                            ⚠️ {item.observations}
-                                                        </p>
-                                                    )}
-                                                </div>
+                    orders.map((order) => {
+                        const isLate = differenceInMinutes(new Date(), new Date(order.created_at)) >= 20;
+
+                        return (
+                            <Card
+                                key={order.id}
+                                className={`border-4 shadow-xl flex flex-col ${order.status === "pending"
+                                    ? "border-yellow-500 bg-neutral-800"
+                                    : "border-orange-600 bg-neutral-800"
+                                    } ${isLate ? "animate-pulse border-red-600" : ""}`}
+                            >
+                                <CardHeader className="pb-2 bg-black/20">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <CardTitle className="text-2xl font-black text-white">
+                                                #{order.id.slice(0, 5).toUpperCase()}
+                                            </CardTitle>
+                                            <div className="mt-2">
+                                                <Timer startTime={order.created_at} />
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-
-                                {order.notes && (
-                                    <div className="bg-blue-900/30 border border-blue-800 p-2 rounded text-blue-200 font-medium">
-                                        📝 Note: {order.notes}
+                                        <Badge
+                                            className={`text-lg px-3 py-1 ${order.status === "pending"
+                                                ? "bg-yellow-500 hover:bg-yellow-600 text-black"
+                                                : "bg-orange-600 hover:bg-orange-700 text-white"
+                                                }`}
+                                        >
+                                            {order.status === "pending" ? "NOVO" : "PREPARO"}
+                                        </Badge>
                                     </div>
-                                )}
+                                    <div className="text-sm text-neutral-400 mt-1 font-medium truncate">
+                                        {order.customer_name}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="pt-4 space-y-4 flex-1 flex flex-col">
+                                    <div className="space-y-4 flex-1">
+                                        {/* Items List - Large Text for Kitchen */}
+                                        {Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
+                                            <div key={idx} className="border-b border-neutral-700 pb-2 last:border-0 last:pb-0">
+                                                <div className="flex items-start gap-3">
+                                                    <span className="font-black text-2xl text-yellow-400 min-w-[2rem]">
+                                                        {item.quantity}x
+                                                    </span>
+                                                    <div>
+                                                        <span className="font-bold text-xl text-white leading-tight block">
+                                                            {item.name}
+                                                        </span>
+                                                        {item.observations && (
+                                                            <p className="text-red-400 font-bold text-lg mt-1 bg-red-900/30 p-1 rounded">
+                                                                ⚠️ {item.observations}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                <Button
-                                    className="w-full h-16 text-xl font-bold mt-4"
-                                    size="lg"
-                                    variant={order.status === 'pending' ? 'default' : 'secondary'}
-                                    onClick={() => advanceStatus(order)}
-                                >
-                                    {order.status === 'pending' ? 'INICIAR PREPARO 🔥' : 'PRONTO PARA ENTREGA ✅'}
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    ))
+                                    {order.notes && (
+                                        <div className="bg-blue-900/30 border border-blue-800 p-2 rounded text-blue-200 font-medium">
+                                            📝 Note: {order.notes}
+                                        </div>
+                                    )}
+
+                                    <Button
+                                        className="w-full h-16 text-xl font-bold mt-4"
+                                        size="lg"
+                                        variant={order.status === 'pending' ? 'default' : 'secondary'}
+                                        onClick={() => advanceStatus(order)}
+                                    >
+                                        {order.status === 'pending' ? 'INICIAR PREPARO 🔥' : 'PRONTO PARA ENTREGA ✅'}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        );
+                    })
                 )}
             </div>
         </div>
