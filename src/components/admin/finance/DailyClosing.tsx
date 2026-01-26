@@ -10,6 +10,7 @@ import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Printer, TrendingUp, TrendingDown, DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Tables } from "@/integrations/supabase/types";
 
 export function DailyClosing() {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -31,7 +32,7 @@ export function DailyClosing() {
                 .lte("created_at", endOfDay.toISOString());
 
             if (error) throw error;
-            return data;
+            return data as unknown as Tables<"orders">[];
         }
     });
 
@@ -282,7 +283,7 @@ export function DailyClosing() {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                orders.map((order: any) => {
+                                orders.map((order) => {
                                     const notes = (order.notes || "").toLowerCase();
                                     let method = "Não Identificado";
                                     let badgeColor = "bg-gray-100 text-gray-800";

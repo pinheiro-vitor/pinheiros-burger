@@ -9,6 +9,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 type Period = "today" | "week" | "month" | "custom";
 
+interface AnalyticsItem {
+    name: string;
+    quantity: number;
+    price: number;
+}
+
 export function SalesAnalytics() {
     const [period, setPeriod] = useState<Period>("week");
 
@@ -71,8 +77,8 @@ export function SalesAnalytics() {
         // Popular products
         const productCounts: Record<string, { name: string; count: number; revenue: number }> = {};
         orders.forEach((order) => {
-            const items = Array.isArray(order.items) ? order.items : [];
-            items.forEach((item: any) => {
+            const items = (Array.isArray(order.items) ? order.items : []) as unknown as AnalyticsItem[];
+            items.forEach((item) => {
                 if (!productCounts[item.name]) {
                     productCounts[item.name] = { name: item.name, count: 0, revenue: 0 };
                 }
