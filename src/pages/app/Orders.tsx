@@ -7,6 +7,8 @@ import { ArrowLeft, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
+import { Tables } from "@/integrations/supabase/types";
+
 export default function CustomerOrders() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -14,15 +16,15 @@ export default function CustomerOrders() {
     const { data: orders = [], isLoading } = useQuery({
         queryKey: ["my-orders", user?.id],
         enabled: !!user,
-        queryFn: async () => {
-            const { data, error } = await supabase
+        queryFn: async (): Promise<Tables<"orders">[]> => {
+            const { data, error } = await (supabase as any)
                 .from("orders")
                 .select("*")
                 .eq("user_id", user?.id)
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
-            return data;
+            return data as any;
         },
     });
 
@@ -90,7 +92,8 @@ export default function CustomerOrders() {
                                     <div className="space-y-1">
                                         {(Array.isArray(order.items) ? order.items : []).map((item: any, i: number) => (
                                             <div key={i} className="flex justify-between text-sm">
-                                                <span>{item.quantity}x {item.name}</span>
+                                                <span>{item.name}</span>
+                                                <span className="text-muted-foreground">x{item.quantity}</span>
                                             </div>
                                         ))}
                                     </div>
