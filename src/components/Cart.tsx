@@ -7,6 +7,9 @@ import { useDelivery } from "@/hooks/useDelivery";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Tables, Json } from "@/integrations/supabase/types";
+
+type Coupon = Tables<"coupons">;
 
 // Substitua pelo número de WhatsApp da hamburgueria (com código do país)
 const WHATSAPP_NUMBER = "5511999999999";
@@ -24,7 +27,7 @@ export function Cart() {
   // Coupon State
   const [couponCode, setCouponCode] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
 
   const { status } = useStoreStatus();
@@ -147,7 +150,8 @@ export function Cart() {
         user_id: user?.id || null, // Link to user if logged in
         customer_name: customerName,
         customer_phone: customerPhone,
-        items: items as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        items: items as unknown as Json,
         subtotal: totalPrice,
         discount: discountAmount,
         total: finalTotal,
@@ -411,7 +415,7 @@ _Aguarde a confirmação do atendente._ 🤘`;
                               setAppliedCoupon(null);
                               setCouponCode("");
                               setDiscountAmount(0);
-                              if (appliedCoupon.type === "delivery_fee") {
+                              if (appliedCoupon.discount_type === "delivery_fee") {
                                 setDeliveryFee(null);
                                 setIsFixedFee(false);
                               }

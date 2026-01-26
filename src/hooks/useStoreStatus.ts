@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types"; // Import Tables helper
 import { toast } from "sonner";
 
 export interface OpeningHours {
@@ -72,7 +73,7 @@ export function useStoreStatus() {
             return isOpen;
         },
         onSuccess: (newState) => {
-            queryClient.setQueryData(["store_settings"], (old: any) => ({
+            queryClient.setQueryData(["store_settings"], (old: Tables<"store_settings"> | undefined) => ({
                 ...old,
                 is_open: newState,
             }));

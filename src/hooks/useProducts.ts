@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
 
 export interface Product {
   id: string;
@@ -51,7 +52,7 @@ export function useCategories() {
         .select("*")
         .eq("active", true)
         .order("display_order");
-      
+
       if (error) throw error;
       return data as Category[];
     },
@@ -70,11 +71,11 @@ export function useProducts(categoryId?: string) {
         `)
         .eq("active", true)
         .order("display_order");
-      
+
       if (categoryId) {
         query = query.eq("category_id", categoryId);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
       return data as Product[];
@@ -87,7 +88,7 @@ export function useProduct(productId: string | undefined) {
     queryKey: ["product", productId],
     queryFn: async () => {
       if (!productId) return null;
-      
+
       const { data, error } = await supabase
         .from("products")
         .select(`
@@ -96,7 +97,7 @@ export function useProduct(productId: string | undefined) {
         `)
         .eq("id", productId)
         .single();
-      
+
       if (error) throw error;
       return data as Product;
     },
@@ -109,7 +110,7 @@ export function useProductOptionGroups(productId: string | undefined) {
     queryKey: ["product-option-groups", productId],
     queryFn: async () => {
       if (!productId) return [];
-      
+
       const { data: productGroups, error: groupsError } = await supabase
         .from("product_option_groups")
         .select(`
@@ -119,24 +120,24 @@ export function useProductOptionGroups(productId: string | undefined) {
         `)
         .eq("product_id", productId)
         .order("display_order");
-      
+
       if (groupsError) throw groupsError;
-      
+
       const optionGroups: OptionGroup[] = [];
-      
+
       for (const pg of productGroups || []) {
-        const group = pg.option_group as any;
+        const group = pg.option_group as unknown as Tables<"option_groups">;
         if (!group || !group.active) continue;
-        
+
         const { data: options, error: optionsError } = await supabase
           .from("options")
           .select("*")
           .eq("option_group_id", group.id)
           .eq("active", true)
           .order("display_order");
-        
+
         if (optionsError) throw optionsError;
-        
+
         optionGroups.push({
           id: group.id,
           name: group.name,
@@ -147,7 +148,7 @@ export function useProductOptionGroups(productId: string | undefined) {
           options: options || [],
         });
       }
-      
+
       return optionGroups;
     },
     enabled: !!productId,
@@ -159,12 +160,12 @@ export function useProductIngredients(productId: string | undefined) {
     queryKey: ["product-ingredients", productId],
     queryFn: async () => {
       if (!productId) return [];
-      
+
       const { data, error } = await supabase
         .from("product_ingredients")
         .select("*")
         .eq("product_id", productId);
-      
+
       if (error) throw error;
       return data;
     },
