@@ -35,7 +35,7 @@ export function TopProductsTable() {
       const productMap = new Map<string, { value: number; quantity: number }>();
 
       orders?.forEach((order) => {
-        const items = order.items as any[];
+        const items = (order.items as unknown) as { name: string; price: number; quantity: number }[];
         items?.forEach((item) => {
           const name = item.name || "Produto";
           const current = productMap.get(name) || { value: 0, quantity: 0 };

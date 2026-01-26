@@ -11,10 +11,16 @@ import { useNavigate } from "react-router-dom";
 
 type OrderStatus = "pending" | "preparing" | "ready";
 
+interface OrderItem {
+    name: string;
+    quantity: number;
+    observations?: string;
+}
+
 interface Order {
     id: string;
     customer_name: string;
-    items: any;
+    items: OrderItem[];
     status: OrderStatus;
     notes: string | null;
     created_at: string;
@@ -57,7 +63,7 @@ export default function KitchenDisplay() {
                 .in("status", ["pending", "preparing"])
                 .order("created_at", { ascending: true }); // Oldest first
             if (error) throw error;
-            return data as Order[];
+            return data as unknown as Order[];
         },
     });
 
@@ -80,7 +86,7 @@ export default function KitchenDisplay() {
     }, [queryClient]);
 
     const updateStatusMutation = useMutation({
-        mutationFn: async ({ id, status }: { id: string; status: any }) => {
+        mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
             const { error } = await supabase.from("orders").update({ status }).eq("id", id);
             if (error) throw error;
         },
@@ -156,7 +162,7 @@ export default function KitchenDisplay() {
                                 <CardContent className="pt-4 space-y-4 flex-1 flex flex-col">
                                     <div className="space-y-4 flex-1">
                                         {/* Items List - Large Text for Kitchen */}
-                                        {Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
+                                        {Array.isArray(order.items) && order.items.map((item: OrderItem, idx: number) => (
                                             <div key={idx} className="border-b border-neutral-700 pb-2 last:border-0 last:pb-0">
                                                 <div className="flex items-start gap-3">
                                                     <span className="font-black text-2xl text-yellow-400 min-w-[2rem]">

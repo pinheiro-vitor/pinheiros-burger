@@ -11,6 +11,9 @@ import { toast } from "sonner";
 import { DeliveryZonesManager } from "@/components/admin/DeliveryZonesManager";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+type DailyHours = { open: string; close: string };
+type WeeklyHours = Record<string, DailyHours>;
+
 interface StoreSettings {
   id: string;
   store_name: string;
@@ -18,7 +21,7 @@ interface StoreSettings {
   is_open: boolean;
   min_order_value: number | null;
   delivery_fee: number | null;
-  opening_hours: any;
+  opening_hours: WeeklyHours;
   store_address: string | null;
   store_lat: number | null;
   store_lng: number | null;
@@ -53,7 +56,7 @@ export default function AdminSettings() {
     is_open: true,
     min_order_value: "",
     delivery_fee: "",
-    opening_hours: defaultHours,
+    opening_hours: defaultHours as WeeklyHours,
     store_address: "",
     store_lat: "",
     store_lng: "",
@@ -70,7 +73,7 @@ export default function AdminSettings() {
         .limit(1)
         .single();
       if (error && error.code !== "PGRST116") throw error;
-      return data as StoreSettings | null;
+      return data as unknown as StoreSettings | null;
     },
   });
 
@@ -82,7 +85,7 @@ export default function AdminSettings() {
         is_open: settings.is_open,
         min_order_value: settings.min_order_value?.toString() || "",
         delivery_fee: settings.delivery_fee?.toString() || "",
-        opening_hours: settings.opening_hours || defaultHours,
+        opening_hours: settings.opening_hours || (defaultHours as WeeklyHours),
         store_address: settings.store_address || "",
         store_lat: settings.store_lat?.toString() || "",
         store_lng: settings.store_lng?.toString() || "",

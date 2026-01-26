@@ -5,7 +5,7 @@ interface TicketReceiptProps {
     customerName: string;
     customerPhone: string;
     customerAddress: string;
-    items: any[];
+    items: { name: string; quantity: number; price: number }[];
     subtotal: number;
     discount: number;
     deliveryFee: number;

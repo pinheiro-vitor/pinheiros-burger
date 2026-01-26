@@ -11,14 +11,22 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { Clock, CheckCircle, ChefHat, Truck, XCircle } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
+import { type LucideIcon } from "lucide-react";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
+
+interface OrderItem {
+  name: string;
+  quantity: number;
+  price: number;
+  observations?: string;
+}
 
 interface Order {
   id: string;
   customer_name: string;
   customer_phone: string;
-  items: any;
+  items: OrderItem[];
   subtotal: number;
   discount: number;
   total: number;
@@ -27,7 +35,7 @@ interface Order {
   created_at: string;
 }
 
-const statusConfig: Record<OrderStatus, { label: string; color: string; icon: any }> = {
+const statusConfig: Record<OrderStatus, { label: string; color: string; icon: LucideIcon }> = {
   pending: { label: "Pendente", color: "bg-yellow-500", icon: Clock },
   confirmed: { label: "Aceito", color: "bg-blue-500", icon: CheckCircle },
   preparing: { label: "Preparo", color: "bg-orange-500", icon: ChefHat },
@@ -51,7 +59,7 @@ export default function AdminOrders() {
         .eq("status", activeStatus)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Order[];
+      return data as unknown as Order[];
     },
   });
 
@@ -119,7 +127,7 @@ export default function AdminOrders() {
     // Ideally we would reuse TicketReceipt here, but rendering React to string from client is tricky without ReactDOMServer
     // So we'll build a simple HTML receipt
 
-    const itemsHtml = Array.isArray(order.items) ? order.items.map((item: any) => `
+    const itemsHtml = Array.isArray(order.items) ? (order.items as OrderItem[]).map((item) => `
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
             <span>${item.quantity}x ${item.name}</span>
             <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
@@ -226,7 +234,7 @@ export default function AdminOrders() {
                     </div>
 
                     <div className="space-y-1">
-                      {items.slice(0, 3).map((item: any, idx: number) => (
+                      {items.slice(0, 3).map((item: OrderItem, idx: number) => (
                         <p key={idx} className="text-sm">
                           {item.quantity}x {item.name}
                         </p>
